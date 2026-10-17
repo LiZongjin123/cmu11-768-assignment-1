@@ -152,6 +152,7 @@ class Agent:
 
         # TODO(1.1.a): Add machinery to maintain agent state as it takes actions
         # and observes the results.
+        self.interaction: list[dict[str, Any]] = []
 
     def load_skills(self, skills_path: Path) -> dict[str, dict[str, str]]:
         """Load the skill folders exposed to this agent."""
@@ -227,7 +228,12 @@ class Agent:
 
         # You want to be careful about which attributes of the class you modify
         # here as they may also be handled by the subclasses.
-        raise NotImplementedError
+        prompt = [
+            {"role": "system", "content": self.system_prompt},
+            {"role": "user", "content": self.task_prompt}
+        ]
+        prompt.extend(self.interaction)
+        return prompt
 
     def estimate_active_prompt_tokens(self) -> int:
         """Estimate the next prompt, calibrated by the provider's latest usage."""
@@ -330,6 +336,13 @@ class Agent:
             # step. Ensure you identify when the agent has completed the task
             # by setting `Agent.finished`. If the agent exceeds the
             # `step_limit`, raise `StepLimitError`.
+            while not self.finished and self.steps_taken <= self.step_limit:
+                message = self.query_language_model()
+                self.interaction.extend(message)
+                observation = self.execute_tool_calls(message.get("tool_calls", []))
+                self.interaction.extend(observation)
+            if self.steps_taken > self.step_limit:
+                raise StepLimitError
 
             # TODO(2.2) Call `maybe_compact_context()` before each new action
             # request in your shared loop. It already estimates active tokens
