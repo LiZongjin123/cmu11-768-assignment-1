@@ -16,6 +16,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from yaml import safe_load
 
 from assignment.env import Environment
 from assignment.agent.tools import INVOKE_SKILL_TOOL
@@ -165,7 +166,23 @@ class Agent:
         # ``content`` of the skill file for ``invoke_skill``. Reject duplicate
         # names and malformed or missing frontmatter with a clear
         # ``ValueError``.
-        raise NotImplementedError
+        skills_dir = Path(skills_path)
+        skill_files = skills_dir.glob("*/SKILL.md")
+        skill_dict = dict[str, dict[str, str]]()
+        for skill_file in skill_files:
+            text = skill_file.read_text(encoding="utf-8")
+            split_text = text.splitlines()
+            if split_text[0] != "---":
+                raise ValueError
+            index = split_text.index("---")
+            metadata = sum(split_text[1:index])
+            content = sum(split_text[index + 1:])
+            frontmatter = safe_load(metadata)
+            skill_dict[frontmatter["name"]] = {
+                "metadata": metadata,
+                "content": content
+            }
+        return skill_dict
 
     def query_language_model(self) -> dict[str, Any]:
         """Send one tool-enabled Chat Completions request and normalize it."""

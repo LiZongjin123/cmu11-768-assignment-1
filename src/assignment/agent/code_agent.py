@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Any
 
 from assignment.agent.base import (
@@ -65,6 +66,19 @@ class CodeAgent(Agent):
 
         # TODO(1.4): If any skills are available to the agent, make their
         # descriptions/metadata available to the agent in the prompt.
+        skills_list = ""
+        for value in self.skills.values():
+            skills_list += (
+                "{\n"
+                f"  {value["metadata"]}\n"
+                "},\n"
+            )
+        skills_prompt = (
+            "<available_skills>\n"
+            f"{skills_list}"
+            "<available_skills>"
+        )
+        self.system_prompt += f"\n{skills_prompt}"
 
     def execute_tool_calls(
         self, tool_calls: list[dict[str, Any]]
