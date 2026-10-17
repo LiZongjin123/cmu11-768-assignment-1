@@ -173,10 +173,10 @@ class Agent:
             text = skill_file.read_text(encoding="utf-8")
             split_text = text.splitlines()
             if split_text[0] != "---":
-                raise ValueError
-            index = split_text.index("---")
-            metadata = sum(split_text[1:index])
-            content = sum(split_text[index + 1:])
+                raise ValueError()
+            index = split_text.index("---", 1)
+            metadata = "\n".join(split_text[1:index])
+            content = "\n".join(split_text[index + 1:])
             frontmatter = safe_load(metadata)
             skill_dict[frontmatter["name"]] = {
                 "metadata": metadata,
@@ -355,7 +355,7 @@ class Agent:
             # `step_limit`, raise `StepLimitError`.
             while not self.finished and self.steps_taken <= self.step_limit:
                 message = self.query_language_model()
-                self.interaction.extend(message)
+                self.interaction.append(message)
                 observation = self.execute_tool_calls(message.get("tool_calls", []))
                 self.interaction.extend(observation)
             if self.steps_taken > self.step_limit:
@@ -366,7 +366,7 @@ class Agent:
             # and handles the threshold, and tracks compaction events for
             # logging.
 
-            raise NotImplementedError
+            
         finally:
             # This block is provided infrastructure. Do not modify it: a
             # trajectory is required even when a run fails.

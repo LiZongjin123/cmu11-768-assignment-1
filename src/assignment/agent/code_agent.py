@@ -13,7 +13,7 @@ from assignment.agent.base import (
     Agent,
     format_tool_output,
 )
-from assignment.agent.tools import EXECUTE_TOOL, SEND_MESSAGE_TOOL
+from assignment.agent.tools import EXECUTE_TOOL, INVOKE_SKILL_TOOL, SEND_MESSAGE_TOOL
 from assignment.env import Environment
 from jsonschema import validate, ValidationError
 
@@ -49,6 +49,8 @@ class CodeAgent(Agent):
 
         # TODO(Part 1.3): Make the `execute` and `send_message` tools available
         # to the agent.
+        self.tools.append(EXECUTE_TOOL)
+        self.tools.append(SEND_MESSAGE_TOOL)
 
         # TODO(1.1.b): Construct the system prompt and task_prompt. These
         # should be usable by the `Agent.build_prompt` method.
@@ -76,7 +78,7 @@ class CodeAgent(Agent):
         skills_prompt = (
             "<available_skills>\n"
             f"{skills_list}"
-            "<available_skills>"
+            "</available_skills>"
         )
         self.system_prompt += f"\n{skills_prompt}"
 
@@ -101,11 +103,14 @@ class CodeAgent(Agent):
                     result["content"] = self.__handle_execute_tool_calling(tool_call["function"]["arguments"])
                 elif tool_call["function"]["name"] == "send_message":
                     result["content"] = self.__handle_send_message_tool_calling(tool_call["function"]["arguments"])
+                elif tool_call["function"]["name"] == "invoke_skill":
+                    result["content"] = self.__handle_invoke_skill_tool_calling(tool_call["function"]["arguments"])
             output.append(result)
         return output
                     
     def __send_message(self, summary:str) -> str:
         print(summary)
+        self.finished = True
         return "success"
 
     def __handle_execute_tool_calling(self, arguments: str) -> str:
@@ -131,3 +136,16 @@ class CodeAgent(Agent):
             return f"Arguments error: {exc.message}"
         else:
             return self.__send_message(**args)
+
+    def __handle_invoke_skill_tool_calling(self, arguments: str) -> str:
+        schema = INVOKE_SKILL_TOOL["function"]["parameters"]
+        try:
+            args = json.loads(arguments)
+            validate(args, schema)
+            return self.skills[args["name"]]["content"]
+        except json.JSONDecodeError:
+            return "Arguments error: invalid JSON."
+        except ValidationError as exc:
+            return f"Arguments error: {exc.message}."
+        except KeyError as exc:
+            return f"Unknown skill: {exc.args[0]}."
